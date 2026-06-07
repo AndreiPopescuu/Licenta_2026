@@ -1,0 +1,337 @@
+======================================================================
+UNCOVERED ACCESSIBLE TOGGLE BINS — Ibex RISC-V
+Total: 121 bins (exclud structural + testbench)
+======================================================================
+
+CONTEXT:
+  Processor : Ibex RISC-V (RV32IMC, Machine mode)
+  Simulation: Verilator + cocotb
+  Coverage  : 71.94% achieved (14,404 / 20,023 toggle bins)
+  These bins CAN toggle — proven by Verilator constant propagation.
+  Programs start at 0x80000000, run in M-mode.
+
+CONFIGURATION (fixed — cannot change without recompilation):
+  PMPEnable=0, ICache=0, RV32B=None, BranchPredictor=0,
+  WritebackStage=0, SecureIbex=0, RV32M=RV32MFast (MUL/DIV enabled)
+
+TASK:
+  Write RISC-V assembly programs (RV32IMC) that toggle each group.
+  Each signal must transition 0→1 AND 1→0 to be "covered".
+
+======================================================================
+GROUP 1: mcountinhibit CSR bits (30 bins)
+======================================================================
+
+EXPLANATION:
+  mcountinhibit (CSR 0x320) controls which performance counters are frozen.
+  Bits [31:1] are writable. Writing a non-zero value then zero toggles them.
+  With MHPMCounterNum=0 only bits 0 (cycle) and 2 (instret) have hardware,
+  but the register bits are still writable.
+
+SIGNALS:
+  ibex_cs_registers              mcountinhibit[10]
+  ibex_cs_registers              mcountinhibit[11]
+  ibex_cs_registers              mcountinhibit[12]
+  ibex_cs_registers              mcountinhibit[13]
+  ibex_cs_registers              mcountinhibit[14]
+  ibex_cs_registers              mcountinhibit[15]
+  ibex_cs_registers              mcountinhibit[16]
+  ibex_cs_registers              mcountinhibit[17]
+  ibex_cs_registers              mcountinhibit[18]
+  ibex_cs_registers              mcountinhibit[19]
+  ibex_cs_registers              mcountinhibit[1]
+  ibex_cs_registers              mcountinhibit[20]
+  ibex_cs_registers              mcountinhibit[21]
+  ibex_cs_registers              mcountinhibit[22]
+  ibex_cs_registers              mcountinhibit[23]
+  ibex_cs_registers              mcountinhibit[24]
+  ibex_cs_registers              mcountinhibit[25]
+  ibex_cs_registers              mcountinhibit[26]
+  ibex_cs_registers              mcountinhibit[27]
+  ibex_cs_registers              mcountinhibit[28]
+  ibex_cs_registers              mcountinhibit[29]
+  ibex_cs_registers              mcountinhibit[30]
+  ibex_cs_registers              mcountinhibit[31]
+  ibex_cs_registers              mcountinhibit[3]
+  ibex_cs_registers              mcountinhibit[4]
+  ibex_cs_registers              mcountinhibit[5]
+  ibex_cs_registers              mcountinhibit[6]
+  ibex_cs_registers              mcountinhibit[7]
+  ibex_cs_registers              mcountinhibit[8]
+  ibex_cs_registers              mcountinhibit[9]
+
+SUGGESTED PROGRAM:
+  li   t0, 0xFFFFFFFF     # set all mcountinhibit bits
+  csrw 0x320, t0          # write mcountinhibit
+  csrw 0x320, zero        # clear → toggle back
+  li   t0, 0x00000002     # bit 1
+  csrw 0x320, t0
+  csrw 0x320, zero
+
+======================================================================
+GROUP 2: mtvec low bits (21 bins)
+======================================================================
+
+EXPLANATION:
+  mtvec (CSR 0x305) holds the trap vector base address.
+  Bits [7:1] are rarely written. Bit 0 = mode (0=direct, 1=vectored).
+  Write 0xFE then 0x00 to toggle bits [7:1].
+
+SIGNALS:
+  ibex_core                      csr_mtvec[1]
+  ibex_core                      csr_mtvec[2]
+  ibex_core                      csr_mtvec[3]
+  ibex_core                      csr_mtvec[4]
+  ibex_core                      csr_mtvec[5]
+  ibex_core                      csr_mtvec[6]
+  ibex_core                      csr_mtvec[7]
+  ibex_cs_registers              mtvec_d[1]
+  ibex_cs_registers              mtvec_d[2]
+  ibex_cs_registers              mtvec_d[3]
+  ibex_cs_registers              mtvec_d[4]
+  ibex_cs_registers              mtvec_d[5]
+  ibex_cs_registers              mtvec_d[6]
+  ibex_cs_registers              mtvec_d[7]
+  ibex_if_stage                  csr_mtvec_i[1]
+  ibex_if_stage                  csr_mtvec_i[2]
+  ibex_if_stage                  csr_mtvec_i[3]
+  ibex_if_stage                  csr_mtvec_i[4]
+  ibex_if_stage                  csr_mtvec_i[5]
+  ibex_if_stage                  csr_mtvec_i[6]
+  ibex_if_stage                  csr_mtvec_i[7]
+
+SUGGESTED PROGRAM:
+  li   t0, 0x000000FE     # bits [7:1] set, bit 0 = 0 (direct mode)
+  csrw mtvec, t0
+  csrw mtvec, zero        # clear → toggle back
+  li   t0, 0x000000FF     # all low bits set (vectored mode)
+  csrw mtvec, t0
+  csrw mtvec, zero
+
+======================================================================
+GROUP 3: Exception / CSR save paths (11 bins)
+======================================================================
+
+EXPLANATION:
+  csr_save_id/if: pulsed for 1 cycle when CPU saves CSRs on exception entry.
+  exc_pc[7:1]: exception PC lower bits (can vary with RVC compressed instructions).
+  mepc[0]: exception PC bit 0 (set for compressed instruction exceptions).
+  Trigger exceptions via illegal instruction or misaligned load/store.
+
+SIGNALS:
+  ibex_core                      csr_save_id
+  ibex_core                      csr_save_if
+  ibex_id_stage                  csr_save_id_o
+  ibex_id_stage                  csr_save_if_o
+  ibex_if_stage                  exc_pc[1]
+  ibex_if_stage                  exc_pc[2]
+  ibex_if_stage                  exc_pc[3]
+  ibex_if_stage                  exc_pc[4]
+  ibex_if_stage                  exc_pc[5]
+  ibex_if_stage                  exc_pc[6]
+  ibex_if_stage                  exc_pc[7]
+
+SUGGESTED PROGRAM:
+  la   t0, trap_handler
+  csrw mtvec, t0          # set trap handler
+  # illegal instruction exception (mcause=2)
+  .word 0x0000000B        # CUSTOM-0 → illegal
+  # misaligned load (mcause=4, mtval=fault addr)
+  li   t0, 0x80000001
+  lw   t1, 0(t0)          # misaligned → exception
+  # misaligned store (mcause=6)
+  li   t0, 0x80000003
+  sw   t1, 0(t0)
+  j    done
+trap_handler:
+  csrr t0, mepc
+  csrr t1, mcause
+  csrr t2, mtval
+  addi t0, t0, 4
+  csrw mepc, t0
+  mret
+done:
+
+======================================================================
+GROUP 4: Immediate upper bits (27 bins)
+======================================================================
+
+EXPLANATION:
+  imm_a[31:10]: upper bits of immediates used as ALU operand A.
+  These come from LUI/AUIPC 20-bit immediates or CSR zimm_rs1 field.
+  Use large, varied immediate values.
+
+SIGNALS:
+  ibex_id_stage                  imm_a[10]
+  ibex_id_stage                  imm_a[11]
+  ibex_id_stage                  imm_a[12]
+  ibex_id_stage                  imm_a[13]
+  ibex_id_stage                  imm_a[14]
+  ibex_id_stage                  imm_a[15]
+  ibex_id_stage                  imm_a[16]
+  ibex_id_stage                  imm_a[17]
+  ibex_id_stage                  imm_a[18]
+  ibex_id_stage                  imm_a[19]
+  ibex_id_stage                  imm_a[20]
+  ibex_id_stage                  imm_a[21]
+  ibex_id_stage                  imm_a[22]
+  ibex_id_stage                  imm_a[23]
+  ibex_id_stage                  imm_a[24]
+  ibex_id_stage                  imm_a[25]
+  ibex_id_stage                  imm_a[26]
+  ibex_id_stage                  imm_a[27]
+  ibex_id_stage                  imm_a[28]
+  ibex_id_stage                  imm_a[29]
+  ibex_id_stage                  imm_a[30]
+  ibex_id_stage                  imm_a[31]
+  ibex_id_stage                  imm_a[5]
+  ibex_id_stage                  imm_a[6]
+  ibex_id_stage                  imm_a[7]
+  ibex_id_stage                  imm_a[8]
+  ibex_id_stage                  imm_a[9]
+
+SUGGESTED PROGRAM:
+  lui  t0, 0xFFFFF        # bits [31:12] all 1
+  lui  t1, 0x80000        # bit 31 set
+  lui  t2, 0x55555        # alternating bits
+  lui  t3, 0xAAAAA        # alternating bits inverted
+  auipc t4, 0xFFFFF       # PC-relative large immediate
+  auipc t5, 0x7FFFF
+  # CSR immediate (5-bit zimm field)
+  csrrwi t0, mstatus, 0x1F  # zimm = 0x1F (all 5 bits set)
+  csrrwi t0, mstatus, 0x00
+
+======================================================================
+GROUP 5: CSR read data bits (16 bins)
+======================================================================
+
+EXPLANATION:
+  rd_data_o / rdata_q: data output of the CSR register file.
+  These bits toggle when reading CSRs that contain non-zero values.
+  Read various CSRs after writing non-zero values to them.
+
+SIGNALS:
+  ibex_csr                       rd_data_o[0]
+  ibex_csr                       rd_data_o[1]
+  ibex_csr                       rd_data_o[2]
+  ibex_csr                       rd_data_o[3]
+  ibex_csr                       rd_data_o[4]
+  ibex_csr                       rd_data_o[5]
+  ibex_csr                       rd_data_o[6]
+  ibex_csr                       rd_data_o[7]
+  ibex_csr                       rdata_q[0]
+  ibex_csr                       rdata_q[1]
+  ibex_csr                       rdata_q[2]
+  ibex_csr                       rdata_q[3]
+  ibex_csr                       rdata_q[4]
+  ibex_csr                       rdata_q[5]
+  ibex_csr                       rdata_q[6]
+  ibex_csr                       rdata_q[7]
+
+SUGGESTED PROGRAM:
+  # Write then read back various CSRs
+  li   t0, 0xFF
+  csrw mtvec, t0
+  csrr t1, mtvec          # read back → rd_data_o gets 0xFF
+  csrw mtvec, zero
+  csrr t1, mtvec          # read back → rd_data_o gets 0
+  # cycle counter
+  csrr t0, mcycle         # read cycle count (non-zero after execution)
+  csrr t1, minstret       # read instruction count
+  # mstatus
+  li   t0, 0x8
+  csrw mstatus, t0
+  csrr t1, mstatus
+
+======================================================================
+GROUP 6: Data/instruction address low bits (3 bins)
+======================================================================
+
+EXPLANATION:
+  data_addr_o[0]: can be 1 with byte loads/stores (LB/SB) to odd addresses.
+  data_addr_o[1]: can be 1 with byte/halfword ops to 0x2/0x6/... addresses.
+  instr_addr_o[1]: can be 1 with RVC compressed instructions at 2-byte PCs.
+  Use byte and halfword memory operations with varied addresses.
+
+SIGNALS:
+  ibex_core                      data_addr_o[0]
+  ibex_core                      data_addr_o[1]
+  ibex_core                      instr_addr_o[1]
+
+SUGGESTED PROGRAM:
+  li   t0, 0x80000001     # odd address
+  lb   t1, 0(t0)          # byte load → data_addr_o[0] = 1
+  sb   t1, 0(t0)          # byte store → data_addr_o[0] = 1
+  li   t0, 0x80000002     # 2-byte aligned
+  lh   t1, 0(t0)          # halfword → data_addr_o[1] = 1, [0] = 0
+  sh   t1, 0(t0)
+  li   t0, 0x80000003     # 3 = odd + 2
+  lb   t1, 0(t0)          # data_addr_o[1:0] = 11
+  # RVC for instr_addr_o[1]:
+  c.nop                   # compressed instruction at 2-byte boundary
+
+======================================================================
+GROUP 7: ALU / decoder / controller signals (11 bins)
+======================================================================
+
+EXPLANATION:
+  alu_operator[6] / alu_operator_o[6]: ALU op encoding bit 6. Toggled by
+    specific ALU operations that map to this bit (e.g., CPOP, CLZ from RV32B
+    — but RV32B=None so need to check which standard op uses bit 6).
+  bt_a_mux_sel[0]: branch target mux, selects between PC+imm or rs1+imm.
+    Toggled by JAL vs JALR.
+  stall_alu: asserted during multi-cycle ALU ops (MUL, DIV).
+  ctrl_fsm_ns[3]: controller FSM state bit 3, activated during exceptions.
+  exc_pc_mux_o[1] / pc_mux_o[2]: PC mux selects, activated by different
+    types of jumps/exceptions.
+  csr_illegal: asserted when accessing a non-existent or read-only CSR.
+  instr_type_wb[0]: instruction type in writeback (WritebackStage=0 so
+    this might be structural — include but may not toggle).
+  data_accessed[2]: tracer signal for different data access types.
+
+SIGNALS:
+  ibex_core                      instr_type_wb[0]
+  ibex_id_stage                  alu_operator[6]
+  ibex_id_stage                  bt_a_mux_sel[0]
+  ibex_id_stage                  exc_pc_mux_o[1]
+  ibex_id_stage                  pc_mux_o[2]
+  ibex_id_stage                  stall_alu
+  ibex_controller                ctrl_fsm_ns[3]
+  ibex_decoder                   alu_operator_o[6]
+  ibex_decoder                   bt_a_mux_sel_o[0]
+  ibex_decoder                   csr_illegal
+  ibex_tracer                    data_accessed[2]
+
+SUGGESTED PROGRAM:
+  # MUL/DIV for stall_alu
+  li   t0, 12345
+  li   t1, 67890
+  mul  t2, t0, t1         # stall_alu toggles during MUL
+  div  t3, t0, t1         # stall_alu toggles during DIV
+  # JAL vs JALR for bt_a_mux_sel
+  jal  t0, 1f             # JAL: bt_a_mux_sel = PC-relative
+  1: jalr zero, t0, 0     # JALR: bt_a_mux_sel = rs1-relative
+  # csr_illegal: write to non-existent CSR
+  csrwi 0x7FF, 0          # CSR 0x7FF — illegal in current config
+  # Exception for ctrl_fsm_ns and exc_pc_mux
+  la   t0, trap2
+  csrw mtvec, t0
+  ecall                   # environment call exception
+  j    done2
+trap2:
+  mret
+done2:
+
+======================================================================
+GROUP 8: Other (2 bins)
+======================================================================
+SIGNALS:
+  ibex_id_stage                  debug_mode_entering_o
+  ibex_controller                debug_mode_d
+
+======================================================================
+SUMMARY
+======================================================================
+  Total bins in this file: 121
+  All bins can be toggled with RISC-V assembly programs.
+  No testbench modification required.
